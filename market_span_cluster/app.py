@@ -1,4 +1,6 @@
+import threading
 from collections import namedtuple
+from typing import Callable
 
 import streamlit as st
 import pandas as pd
@@ -13,10 +15,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from market_span_cluster.config import EST
 from market_span_cluster.data import load_csv, resample
-from market_span_cluster.matches import find_similar_dtw_high_low_close_4
-
-# SearchData = namedtuple("SearchData", ["ticker", "search_start", "search_end",
-#                                        "pattern_start", "pattern_end", "pattern_lookback_days", "strategy", "top_n"])
+from market_span_cluster.matches import StrategyRunner
 
 
 def create_candlestick_plot(df, title="Price Chart"):
@@ -37,31 +36,35 @@ def create_candlestick_plot(df, title="Price Chart"):
     return fig
 
 
+@st.cache_data
+def fetch_and_clean_data():
+    input_file = "C:\\Users\\jkosk\dev\\data\\qqq-20230101-20241004.ohlcv-1m.csv.zip"
+    df = load_csv(input_file, EST)
+    df = resample(df, '5min')
+    return df.loc['2024-01-01':]
+
+
 def main():
     st.title("Financial Pattern Finder")
 
-    # Initialize session state for preserving values
-    # if 'search_results' not in st.session_state:
-    #     st.session_state.search_results = None
-    if 'data' not in st.session_state:
-        st.session_state.data = None
-
+    now = datetime.now(pytz.UTC)
     if "counter" not in st.session_state:
         st.session_state.counter = 0
-    st.session_state.counter += 1
+
+        # Initialize default form values
+        st.session_state.search_start_date = (now - timedelta(days=180)).date()
+        st.session_state.search_end_date = now.date()
+        st.session_state.pattern_end_date = now.date()
+        st.session_state.pattern_end_time = now.time()
+        st.session_state.lookback_days = 1
+        st.session_state.top_n = 7
+        st.session_state.search_results = None
+
+        # Load historical data
+        st.session_state.df = fetch_and_clean_data()
+
     st.header(f"This page has run {st.session_state.counter} times.")
-
-    # Set default dates
-    now = datetime.now(pytz.UTC)
-    default_search_start = now - timedelta(days=180)
-    default_pattern_start = now - timedelta(days=1)
-
-    # Load data
-    if st.session_state.data is None:
-        input_file = "C:\\Users\\jkosk\dev\\data\\qqq-20230101-20241004.ohlcv-1m.csv.zip"
-        df = load_csv(input_file, EST)
-        df = resample(df, '5min')
-        st.session_state.data = df
+    st.session_state.counter += 1
 
     with st.form("pattern_search_form"):
         # Create two columns for the form
@@ -72,16 +75,14 @@ def main():
             ticker = st.text_input("Ticker Symbol", value="BTCUSDT", key='ticker')
             search_start = st.date_input(
                 "Search Start Date",
-                value=default_search_start.date(),
                 max_value=now.date(),
-                key='search-start-date'
+                key='search_start_date'
             )
             search_end = st.date_input(
                 "Search End Date",
-                value=now.date(),
                 min_value=search_start,
                 max_value=now.date(),
-                key='search-end-date'
+                key='search_end_date'
             )
 
         with col2:
@@ -104,22 +105,19 @@ def main():
             # )
             pattern_end = st.date_input(
                 "Pattern End Date",
-                value=now.date(),
                 min_value=search_start,
                 max_value=now.date(),
-                key='pattern-end-date'
+                key='pattern_end_date'
             )
             pattern_end_time = st.time_input(
                 "Pattern End Time",
-                value=now.time(),
-                key='pattern-end-time'
+                key='pattern_end_time'
             )
             pattern_lookback_days = st.number_input(
                 "Lookback Days",
-                value=1,
                 min_value=1,
                 max_value=3,
-                key='lookback-days'
+                key='lookback_days'
             )
 
         # Bottom form elements
@@ -129,7 +127,8 @@ def main():
             strategy = st.selectbox(
                 "Strategy",
                 options=["DTW"],
-                index=0
+                index=0,
+                key='strategy'
             )
 
         with col4:
@@ -137,19 +136,31 @@ def main():
                 "Number of matches",
                 min_value=1,
                 max_value=10,
-                value=5
+                key='top_n'
             )
 
         submitted = st.form_submit_button("Find Patterns")
 
         if submitted:
             # pattern_start_dt = datetime.combine(pattern_start, pattern_start_time, tzinfo=pytz.UTC)
-            print(f"{st.session_state.counter} Pattern end date: {pattern_end_time}")
-            pattern_end_dt = EST.localize(datetime.combine(pattern_end, pattern_end_time))
-            st.session_state.search_results = find_similar_dtw_high_low_close_4(st.session_state.data,
-                                                                                time(9, 30),
-                                                                                pattern_lookback_days,
-                                                                                pattern_end_dt, top_n)
+            # print(f"{st.session_state.counter} Pattern end date: {pattern_end_time}")
+
+            df = st.session_state.df
+            progress_bar = st.progress(0, 'Searching for patterns...')
+
+            def report_progress(progress: int):
+                progress_bar.progress(progress)
+
+            def get_results():
+                pattern_end_dt = EST.localize(datetime.combine(pattern_end, pattern_end_time))
+                runner = StrategyRunner(progress_reporter=report_progress)
+                st.session_state.search_results = runner.find_similar_dtw_high_low_close_4(df,
+                                                                                           time(9, 30),
+                                                                                           pattern_lookback_days,
+                                                                                           pattern_end_dt, top_n)
+
+            thread = threading.Thread(target=get_results)
+            thread.start()
 
     # Display pattern if we have results
     if st.session_state.search_results is not None:
