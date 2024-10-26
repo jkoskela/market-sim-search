@@ -38,6 +38,24 @@ template, then trimmed down.
 └── requirements.in
 └── requirements.txt
 ```
-
 --------
 
+## Installation
+
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -e 
+```
+
+## Usage
+To run the webapp:
+```bash
+streamlit run market_span_cluster/app.py
+```
+## Development
+When adding a new dependency, update the requirements.in file and run:
+```bash
+pip-compile requirements.in
+pip-sync
+```

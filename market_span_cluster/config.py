@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -21,6 +22,21 @@ PROCESSED_DATA_DIR = DATA_DIR / "processed"
 
 def is_ipython():
     hasattr(__builtins__, '__IPYTHON__')
+
+
+# Configure logging
+logger.remove(None)
+fmt = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{function}: {message}</level>"
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+log_path = Path(os.getenv("LOG_PATH", f"{PROJ_ROOT}/app.log"))
+log_path.parent.mkdir(parents=True, exist_ok=True)
+
+logger.add(
+    log_path,
+    level=log_level,
+    rotation="1 day",
+    retention="3 days"
+)
 
 
 # If tqdm is installed, configure loguru with tqdm.write

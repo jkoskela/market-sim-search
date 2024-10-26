@@ -4,6 +4,7 @@ from typing import Callable
 import pandas as pd
 import numpy as np
 from tslearn.metrics import dtw
+from loguru import logger
 
 from market_span_cluster.config import EST
 from market_span_cluster.models import MatchModel
@@ -94,8 +95,8 @@ def find_similar_windows(data: pd.DataFrame, window_time_start: time, window_siz
     if target_window is None:
         raise Exception('Can''t load target window')
 
-    print(f'Using target window {target_window.index[0]}-{target_window.index[-1]}')
-    print(f'Searching for windows of length {window_size_days} days ending at time {target_end.time()}')
+    logger.info(f'Using target window {target_window.index[0]}-{target_window.index[-1]}')
+    logger.info(f'Searching for windows of length {window_size_days} days ending at time {target_end.time()}')
     idxs = data.index.indexer_at_time(target_end.time())
 
     matches = []
@@ -116,7 +117,7 @@ def find_similar_windows(data: pd.DataFrame, window_time_start: time, window_siz
         score = strategy(target_window, window)
         matches.append(MatchModel(window.index[0], window.index[-1], score))
         success += 1
-    print(f'Successfully processed {success} matches, with {fail} failures.')
+    logger.info(f'Successfully processed {success} matches, with {fail} failures.')
     return matches
 
 
