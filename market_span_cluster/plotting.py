@@ -34,7 +34,7 @@ def get_window_matches(data: pd.DataFrame, matches: list[MatchModel]):
     return window_matches
 
 
-def create_chart(window_match: WindowMatch, show_projection: bool = True, width: int = 1200, height: int = 600) -> JupyterChart:
+def create_jupyter_chart(window_match: WindowMatch, show_projection: bool = True, width: int = 1200, height: int = 600) -> JupyterChart:
     """Plot candlestick chart from a WindowMatch, with an optional projection"""
     if pd.notna(window_match.match_end):
         chart = JupyterChart(width=width, height=height)
@@ -52,10 +52,10 @@ def create_chart(window_match: WindowMatch, show_projection: bool = True, width:
         return None
 
 
-def create_chart_from_model(data: pd.DataFrame, match: MatchModel, show_projection: bool = True) -> JupyterChart:
+def create_jupyter_chart_from_model(data: pd.DataFrame, match: MatchModel, show_projection: bool = True) -> JupyterChart:
     """Plot candlestick chart a dataframe and a match, with an optional projection"""
     window_match = get_window_match(data, match)
-    return create_chart(window_match, show_projection)
+    return create_jupyter_chart(window_match, show_projection)
 
 
 # def create_charts(window_matches: list[WindowMatch], width: int=1600, height: int=700):
@@ -66,7 +66,7 @@ def create_chart_from_model(data: pd.DataFrame, match: MatchModel, show_projecti
 #   return charts
 
 
-def create_chart_from_df(data: pd.DataFrame, width: int = 1600, height: int = 700) -> JupyterChart:
+def create_jupyter_chart_from_df(data: pd.DataFrame, width: int = 1600, height: int = 700) -> JupyterChart:
     """Plot candlestick chart from a dataframe."""
     chart = JupyterChart(width=width, height=height)
     data = data.copy()

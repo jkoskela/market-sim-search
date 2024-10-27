@@ -1,3 +1,3 @@
 from typing import Callable
 
-ProgressReporter = Callable[[int], None]
+ProgressReporter = Callable[[float], None]

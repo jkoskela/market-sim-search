@@ -57,5 +57,6 @@ streamlit run market_span_cluster/app.py
 When adding a new dependency, update the requirements.in file and run:
 ```bash
 pip-compile requirements.in
-pip-sync
+pip-sync # this doesn't update the packages in the .venv like it should
+pip install -r requirements.txt # this should be handled by pip-sync
 ```

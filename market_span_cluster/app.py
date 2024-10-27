@@ -16,15 +16,19 @@ sys.path.append(str(Path(__file__).parent.parent))
 from market_span_cluster.config import EST
 from market_span_cluster.data import load_csv, resample
 from market_span_cluster.matches import StrategyRunner
+from market_span_cluster.models import WindowMatch
+from market_span_cluster.plotting import get_window_matches
 
 
-def create_candlestick_plot(df, title="Price Chart"):
+def create_candlestick_plot_impl(match: WindowMatch, title=None):
     """Create a candlestick chart from OHLCV data"""
-    fig = go.Figure(data=[go.Candlestick(x=df.index,
-                                         open=df['open'],
-                                         high=df['high'],
-                                         low=df['low'],
-                                         close=df['close'])])
+    df = match.window
+    return go.Candlestick(x=df.index, open=df['open'], high=df['high'], low=df['low'], close=df['close'], name=title)
+
+
+def create_candlestick_plot(match: WindowMatch, title="Price Chart"):
+    """Create a candlestick chart from OHLCV data"""
+    fig = go.Figure(data=[create_candlestick_plot_impl(match)])
 
     fig.update_layout(
         title=title,
@@ -41,7 +45,16 @@ def fetch_and_clean_data():
     input_file = "C:\\Users\\jkosk\dev\\data\\qqq-20230101-20241004.ohlcv-1m.csv.zip"
     df = load_csv(input_file, EST)
     df = resample(df, '5min')
-    return df.loc['2024-01-01':]
+    return df.loc['2024-01-01':].dropna()
+
+
+@st.cache_data(show_spinner=False)
+def run_search(data: pd.DataFrame, window_time_start: time, window_size_days: int, target_end: datetime,
+               top: int = None) -> list[WindowMatch]:
+    progress_bar = st.progress(0, 'Searching for patterns...')
+    runner = StrategyRunner(lambda x: progress_bar.progress(x))
+    matches = runner.find_similar_dtw_high_low_close_4(data, window_time_start, window_size_days, target_end, top)
+    return get_window_matches(data, matches)
 
 
 def main():
@@ -142,25 +155,10 @@ def main():
         submitted = st.form_submit_button("Find Patterns")
 
         if submitted:
-            # pattern_start_dt = datetime.combine(pattern_start, pattern_start_time, tzinfo=pytz.UTC)
-            # print(f"{st.session_state.counter} Pattern end date: {pattern_end_time}")
-
-            df = st.session_state.df
-            progress_bar = st.progress(0, 'Searching for patterns...')
-
-            def report_progress(progress: int):
-                progress_bar.progress(progress)
-
-            def get_results():
-                pattern_end_dt = EST.localize(datetime.combine(pattern_end, pattern_end_time))
-                runner = StrategyRunner(progress_reporter=report_progress)
-                st.session_state.search_results = runner.find_similar_dtw_high_low_close_4(df,
-                                                                                           time(9, 30),
-                                                                                           pattern_lookback_days,
-                                                                                           pattern_end_dt, top_n)
-
-            thread = threading.Thread(target=get_results)
-            thread.start()
+            pattern_end_dt = EST.localize(datetime.combine(pattern_end, pattern_end_time))
+            st.session_state.search_results = run_search(st.session_state.df, time(9, 30),
+                                                         pattern_lookback_days,
+                                                         pattern_end_dt, top_n)
 
     # Display pattern if we have results
     if st.session_state.search_results is not None:
@@ -168,11 +166,12 @@ def main():
 
         # Create tabs for different view options
         tab1, tab2 = st.tabs(["Individual Charts", "Combined View"])
+        print(st.session_state.search_results)
 
         with tab1:
-            for i, match_df in enumerate(st.session_state.search_results):
+            for i, match in enumerate(st.session_state.search_results):
                 st.plotly_chart(
-                    create_candlestick_plot(match_df, f"Match {i + 1}"),
+                    create_candlestick_plot(match, f"Match {i + 1}"),
                     use_container_width=True
                 )
 
@@ -180,15 +179,8 @@ def main():
             # Create subplot with all matches
             if st.session_state.search_results:
                 fig = go.Figure()
-                for i, match_df in enumerate(st.session_state.search_results):
-                    fig.add_trace(go.Candlestick(
-                        x=match_df.index,
-                        open=match_df['open'],
-                        high=match_df['high'],
-                        low=match_df['low'],
-                        close=match_df['close'],
-                        name=f"Match {i + 1}"
-                    ))
+                for i, match in enumerate(st.session_state.search_results):
+                    fig.add_trace(create_candlestick_plot_impl(match, f"Match {i + 1}"))
 
                 fig.update_layout(
                     title="All Matches Comparison",

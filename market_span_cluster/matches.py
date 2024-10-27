@@ -72,16 +72,14 @@ def get_window(data: pd.DataFrame, window_start_time: time, window_size_days: in
 
         if not indexer or indexer[0] == -1:
             nearest = data.index.get_indexer([window_start], method='nearest')
-            print(f"Can't load window starting at {window_start}. indexer was {indexer}. nearest was {nearest}.")
+            logger.warning(f"Can't load window starting at {window_start}. indexer was {indexer}. nearest was {nearest}.")
             return None
         else:
             window_start = data.index[indexer[0]]
             window = data.loc[window_start:window_end]
-            # print(f"get_window: Loaded window starting at {window_start}. indexer was {indexer}. head:")
-            # print(window.head())
             return window
     else:
-        print(f"Can't load window ending at {window_end}. Date index for start was {idx}.")
+        logger.warning(f"Can't load window ending at {window_end}. Date index for start was {idx}.")
         return None
 
 
@@ -94,16 +92,13 @@ def least_distance(matches: list[MatchModel], top: int = 0):
         return sorted(matches, key=lambda match: match.score)[:top]
 
 
-# def highest_score(matches: list[MatchModel], top: int = 0):
-#     # Sort descending
-#     if not top:
-#         return sorted(matches, key=lambda match: match.score, reverse=True)
-#     else:
-#         return sorted(matches, key=lambda match: match.score, reverse=True)[:top]
-
 class StrategyRunner:
     def __init__(self, progress_reporter: ProgressReporter = lambda x: None):
         self.progress_reporter = progress_reporter
+        self.progress_count = 0
+        self.max_progress_count = np.nan
+        self.outer_loop_count = 0
+        self.max_outer_loop_count = np.nan
 
     def find_similar_windows(self, data: pd.DataFrame, window_time_start: time, window_size_days: int,
                              target_end: datetime,
@@ -125,8 +120,17 @@ class StrategyRunner:
         success = 0
         fail = 0
         num_indices = len(idxs)
-        for i, idx in enumerate(idxs):
-            self.progress_reporter(i / float(num_indices))
+        if np.isnan(self.max_progress_count):
+            if np.isnan(self.max_outer_loop_count):
+                raise ValueError("max_outer_loop_count wasn't initialized")
+
+            # Assuming that num_indices is the same for each inner loop
+            self.max_progress_count = num_indices * self.max_outer_loop_count
+
+        for idx in idxs:
+            self.progress_reporter(self.progress_count / float(self.max_progress_count))
+            self.progress_count += 1
+
             window_end = data.index[idx]
             window = get_window(data, window_time_start, window_size_days, window_end)
             if window is None:
@@ -140,6 +144,7 @@ class StrategyRunner:
                 continue
             matches.append(MatchModel(window.index[0], window.index[-1], score))
             success += 1
+
         logger.info(f'Successfully processed {success} matches, with {fail} failures.')
         return matches
 
@@ -188,6 +193,7 @@ class StrategyRunner:
 
         The difference from this and find_similar_dtw_hlc4 is that this method runs DTW separately on each feature.
         """
+        self.max_outer_loop_count = 3
         matches_high = self.find_similar_windows(data, window_time_start, window_size_days, target_end, dtw_high)
         matches_low = self.find_similar_windows(data, window_time_start, window_size_days, target_end, dtw_low)
         matches_close = self.find_similar_windows(data, window_time_start, window_size_days, target_end, dtw_close)
