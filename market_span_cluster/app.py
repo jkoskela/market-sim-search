@@ -1,7 +1,3 @@
-import threading
-from collections import namedtuple
-from typing import Callable
-
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -17,27 +13,8 @@ from market_span_cluster.config import EST
 from market_span_cluster.data import load_csv, resample
 from market_span_cluster.matches import StrategyRunner
 from market_span_cluster.models import WindowMatch
-from market_span_cluster.plotting import get_window_matches
-
-
-def create_candlestick_plot_impl(match: WindowMatch, title=None):
-    """Create a candlestick chart from OHLCV data"""
-    df = match.window
-    return go.Candlestick(x=df.index, open=df['open'], high=df['high'], low=df['low'], close=df['close'], name=title)
-
-
-def create_candlestick_plot(match: WindowMatch, title="Price Chart"):
-    """Create a candlestick chart from OHLCV data"""
-    fig = go.Figure(data=[create_candlestick_plot_impl(match)])
-
-    fig.update_layout(
-        title=title,
-        yaxis_title='Price',
-        xaxis_title='Date',
-        height=400,
-        margin=dict(l=20, r=20, t=40, b=20)
-    )
-    return fig
+from market_span_cluster.plotting import get_window_matches, create_candlestick_plotly_impl, create_candlestick_plotly, \
+    create_streamlit_chart
 
 
 @st.cache_data
@@ -45,7 +22,7 @@ def fetch_and_clean_data():
     input_file = "C:\\Users\\jkosk\dev\\data\\qqq-20230101-20241004.ohlcv-1m.csv.zip"
     df = load_csv(input_file, EST)
     df = resample(df, '5min')
-    return df.loc['2024-01-01':].dropna()
+    return df.loc['2024-05-01':].dropna()
 
 
 @st.cache_data(show_spinner=False)
@@ -170,17 +147,15 @@ def main():
 
         with tab1:
             for i, match in enumerate(st.session_state.search_results):
-                st.plotly_chart(
-                    create_candlestick_plot(match, f"Match {i + 1}"),
-                    use_container_width=True
-                )
+                chart = create_streamlit_chart(match)
+                chart.load()
 
         with tab2:
             # Create subplot with all matches
             if st.session_state.search_results:
                 fig = go.Figure()
                 for i, match in enumerate(st.session_state.search_results):
-                    fig.add_trace(create_candlestick_plot_impl(match, f"Match {i + 1}"))
+                    fig.add_trace(create_candlestick_plotly_impl(match, f"Match {i + 1}"))
 
                 fig.update_layout(
                     title="All Matches Comparison",

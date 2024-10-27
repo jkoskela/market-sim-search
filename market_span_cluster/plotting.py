@@ -1,7 +1,8 @@
 import pandas as pd
 import traceback
-from lightweight_charts import JupyterChart
-from collections import namedtuple
+from lightweight_charts import JupyterChart, Chart, AbstractChart
+from lightweight_charts.widgets import StreamlitChart
+from plotly import graph_objects as go
 
 from market_span_cluster.models import MatchModel, WindowMatch
 
@@ -34,36 +35,45 @@ def get_window_matches(data: pd.DataFrame, matches: list[MatchModel]):
     return window_matches
 
 
-def create_jupyter_chart(window_match: WindowMatch, show_projection: bool = True, width: int = 1200, height: int = 600) -> JupyterChart:
-    """Plot candlestick chart from a WindowMatch, with an optional projection"""
+def create_streamlit_chart(window_match: WindowMatch, show_projection: bool = True, width: int = 800,
+                           height: int = 600) -> StreamlitChart | None:
+    """Plot streamlit chart from a WindowMatch, with an optional projection"""
     if pd.notna(window_match.match_end):
-        chart = JupyterChart(width=width, height=height)
-        data = window_match.window.copy()
-        data.index = data.index.tz_localize(None)
-        projection_start = window_match.projection_start.tz_localize(None)
-        if not show_projection:
-            chart.set(data.loc[:projection_start])  # Little leakage, should be non inclusive
-        else:
-            chart.set(data)
-        chart.fit()
-        chart.vertical_span(projection_start, color='#E8F2FD')
+        chart = StreamlitChart(width=width, height=height)
+        create_chart_impl(chart, window_match, show_projection)
         return chart
     else:
         return None
 
 
-def create_jupyter_chart_from_model(data: pd.DataFrame, match: MatchModel, show_projection: bool = True) -> JupyterChart:
+def create_chart_impl(chart: AbstractChart, window_match: WindowMatch, show_projection: bool):
+    data = window_match.window.copy()
+    data.index = data.index.tz_localize(None)
+    projection_start = window_match.projection_start.replace(tzinfo=None)
+    if not show_projection:
+        chart.set(data.loc[:projection_start])  # Little leakage, should be non inclusive
+    else:
+        chart.set(data)
+    chart.fit()
+    chart.vertical_span(projection_start, color='#E8F2FD')
+
+
+def create_jupyter_chart(window_match: WindowMatch, show_projection: bool = True, width: int = 1200,
+                         height: int = 600) -> JupyterChart | None:
+    """Plot jupyter chart from a WindowMatch, with an optional projection"""
+    if pd.notna(window_match.match_end):
+        chart = JupyterChart(width=width, height=height)
+        create_chart_impl(chart, window_match, show_projection)
+        return chart
+    else:
+        return None
+
+
+def create_jupyter_chart_from_model(data: pd.DataFrame, match: MatchModel,
+                                    show_projection: bool = True) -> JupyterChart:
     """Plot candlestick chart a dataframe and a match, with an optional projection"""
     window_match = get_window_match(data, match)
     return create_jupyter_chart(window_match, show_projection)
-
-
-# def create_charts(window_matches: list[WindowMatch], width: int=1600, height: int=700):
-#   charts = []
-#   for projection in projections:
-#     chart = create_chart(projection, width, height)
-#     charts.append(chart)
-#   return charts
 
 
 def create_jupyter_chart_from_df(data: pd.DataFrame, width: int = 1600, height: int = 700) -> JupyterChart:
@@ -75,3 +85,23 @@ def create_jupyter_chart_from_df(data: pd.DataFrame, width: int = 1600, height: 
     chart.fit()
     chart.load()
     return chart
+
+
+def create_candlestick_plotly_impl(match: WindowMatch, title=None):
+    """Create a candlestick chart from OHLCV data"""
+    df = match.window
+    return go.Candlestick(x=df.index, open=df['open'], high=df['high'], low=df['low'], close=df['close'], name=title)
+
+
+def create_candlestick_plotly(match: WindowMatch, title="Price Chart"):
+    """Create a candlestick chart from OHLCV data"""
+    fig = go.Figure(data=[create_candlestick_plotly_impl(match)])
+
+    fig.update_layout(
+        title=title,
+        yaxis_title='Price',
+        xaxis_title='Date',
+        height=400,
+        margin=dict(l=20, r=20, t=40, b=20)
+    )
+    return fig
