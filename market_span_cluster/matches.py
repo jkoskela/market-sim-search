@@ -93,7 +93,7 @@ def least_distance(matches: list[MatchModel], top: int = 0):
 
 
 class StrategyRunner:
-    def __init__(self, progress_reporter: ProgressReporter = lambda x: None):
+    def __init__(self, progress_reporter: ProgressReporter | None = None):
         self.progress_reporter = progress_reporter
         self.progress_count = 0
         self.max_progress_count = np.nan
@@ -120,7 +120,7 @@ class StrategyRunner:
         success = 0
         fail = 0
         num_indices = len(idxs)
-        if np.isnan(self.max_progress_count):
+        if self.progress_reporter and np.isnan(self.max_progress_count):
             if np.isnan(self.max_outer_loop_count):
                 raise ValueError("max_outer_loop_count wasn't initialized")
 
@@ -128,8 +128,9 @@ class StrategyRunner:
             self.max_progress_count = num_indices * self.max_outer_loop_count
 
         for idx in idxs:
-            self.progress_reporter(self.progress_count / float(self.max_progress_count))
-            self.progress_count += 1
+            if self.progress_reporter:
+                self.progress_reporter(self.progress_count / float(self.max_progress_count))
+                self.progress_count += 1
 
             window_end = data.index[idx]
             window = get_window(data, window_time_start, window_size_days, window_end)
