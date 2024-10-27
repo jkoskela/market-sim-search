@@ -60,3 +60,12 @@ pip-compile requirements.in
 pip-sync # this doesn't update the packages in the .venv like it should
 pip install -r requirements.txt # this should be handled by pip-sync
 ```
+
+## Contributors
+- Jade Koskela
+
+## AI Contributors
+- Claude.ai 3.5 Sonnet
+- ChatGPT 4.o
+
+
