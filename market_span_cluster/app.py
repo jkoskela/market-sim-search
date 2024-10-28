@@ -1,6 +1,6 @@
+import numpy as np
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 from datetime import datetime, timedelta, time
 import pytz
 
@@ -8,21 +8,22 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
+# st.set_page_config(layout="wide")
 
-from market_span_cluster.config import EST
+from market_span_cluster.config import EST, PROJ_ROOT
 from market_span_cluster.data import load_csv, resample
 from market_span_cluster.matches import StrategyRunner
 from market_span_cluster.models import WindowMatch
-from market_span_cluster.plotting import get_window_matches, create_candlestick_plotly_impl, create_candlestick_plotly, \
-    create_streamlit_chart
+from market_span_cluster.plotting import get_window_matches, create_streamlit_chart
 
 
 @st.cache_data
-def fetch_and_clean_data():
-    input_file = "C:\\Users\\jkosk\dev\\data\\qqq-20230101-20241004.ohlcv-1m.csv.zip"
+def load_data():
+    input_file = Path(f'{PROJ_ROOT}/data/examples/qqq-20240701-20241004.ohlcv-1m.csv.zip')
     df = load_csv(input_file, EST)
     df = resample(df, '5min')
-    return df.loc['2024-05-01':].dropna()
+    df.dropna(inplace=True)
+    return df
 
 
 @st.cache_data(show_spinner=False)
@@ -35,6 +36,18 @@ def run_search(data: pd.DataFrame, window_time_start: time, window_size_days: in
 
 
 def main():
+    st.markdown("""
+        <style>
+            .block-container {
+                max-width: 80vw;
+                padding: 1rem;
+            }
+            .st-key-form_container {
+                width: 50%;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
     st.title("Financial Pattern Finder")
 
     now = datetime.now(pytz.UTC)
@@ -49,17 +62,17 @@ def main():
         st.session_state.lookback_days = 1
         st.session_state.top_n = 7
         st.session_state.search_results = None
+        st.session_state.search_results = None
 
         # Load historical data
-        st.session_state.df = fetch_and_clean_data()
+        st.session_state.df = load_data()
 
     st.header(f"This page has run {st.session_state.counter} times.")
     st.session_state.counter += 1
 
-    with st.form("pattern_search_form"):
-        # Create two columns for the form
+    form_container = st.container(key='form_container')
+    with form_container.form("pattern_search_form"):
         col1, col2 = st.columns(2)
-
         with col1:
             st.subheader("Search Range")
             ticker = st.text_input("Ticker Symbol", value="BTCUSDT", key='ticker')
@@ -112,15 +125,12 @@ def main():
 
         # Bottom form elements
         col3, col4, col5 = st.columns(3)
-
         with col3:
             strategy = st.selectbox(
                 "Strategy",
                 options=["DTW"],
-                index=0,
                 key='strategy'
             )
-
         with col4:
             top_n = st.number_input(
                 "Number of matches",
@@ -128,9 +138,14 @@ def main():
                 max_value=10,
                 key='top_n'
             )
+        with col5:
+            equity_type = st.selectbox(
+                "Equity Type",
+                options=["Stock", "Crypto", "Future"],
+                key='equity_type'
+            )
 
         submitted = st.form_submit_button("Find Patterns")
-
         if submitted:
             pattern_end_dt = EST.localize(datetime.combine(pattern_end, pattern_end_time))
             st.session_state.search_results = run_search(st.session_state.df, time(9, 30),
@@ -140,31 +155,16 @@ def main():
     # Display pattern if we have results
     if st.session_state.search_results is not None:
         st.subheader("Pattern Matches")
-
-        # Create tabs for different view options
-        tab1, tab2 = st.tabs(["Individual Charts", "Combined View"])
-        print(st.session_state.search_results)
-
-        with tab1:
-            for i, match in enumerate(st.session_state.search_results):
-                chart = create_streamlit_chart(match)
-                chart.load()
-
-        with tab2:
-            # Create subplot with all matches
-            if st.session_state.search_results:
-                fig = go.Figure()
-                for i, match in enumerate(st.session_state.search_results):
-                    fig.add_trace(create_candlestick_plotly_impl(match, f"Match {i + 1}"))
-
-                fig.update_layout(
-                    title="All Matches Comparison",
-                    yaxis_title='Price',
-                    xaxis_title='Date',
-                    height=600,
-                    showlegend=True
-                )
-                st.plotly_chart(fig, use_container_width=True)
+        with st.container(key='matches-container'):
+            col6, col7 = st.columns(2)
+            with col6:
+                for match in st.session_state.search_results[::2]:
+                    chart = create_streamlit_chart(match)
+                    chart.load()
+            with col7:
+                for match in st.session_state.search_results[1::2]:
+                    chart = create_streamlit_chart(match)
+                    chart.load()
 
 
 if __name__ == "__main__":

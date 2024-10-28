@@ -26,4 +26,6 @@ def load_csv(input_file: Path, tz=EST, dedupe: bool = True) -> pd.DataFrame:
 
 def resample(df: pd.DataFrame, freq: str) -> pd.DataFrame:
     """Resample a DataFrame to a new frequency"""
-    return df.resample(freq).agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum'})
+    df = df.resample(freq).agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum'})
+    df.dropna(inplace=True)
+    return df
