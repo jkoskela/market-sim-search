@@ -145,10 +145,14 @@ def main():
             col6, col7 = st.columns(2)
             with col6:
                 for match in st.session_state.search_results[::2]:
+                    match_end_date = match.match_end.strftime('%Y-%m-%d')
+                    st.write(f"**Match End: {match_end_date}**")
                     chart = create_streamlit_chart(match)
                     chart.load()
             with col7:
                 for match in st.session_state.search_results[1::2]:
+                    match_end_date = match.match_end.strftime('%Y-%m-%d')
+                    st.write(f"**Match End: {match_end_date}**")
                     chart = create_streamlit_chart(match)
                     chart.load()
 
