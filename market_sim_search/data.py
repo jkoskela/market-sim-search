@@ -3,7 +3,7 @@ from pathlib import Path
 from loguru import logger
 import pandas as pd
 
-from market_span_cluster.config import EST
+from market_sim_search.config import EST
 
 
 def load_csv(input_file: Path, tz=EST, dedupe: bool = True) -> pd.DataFrame:

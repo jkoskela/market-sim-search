@@ -4,7 +4,7 @@ from lightweight_charts import JupyterChart, Chart, AbstractChart
 from lightweight_charts.widgets import StreamlitChart
 from plotly import graph_objects as go
 
-from market_span_cluster.models import MatchModel, WindowMatch
+from market_sim_search.models import MatchModel, WindowMatch
 
 
 def get_window_match(data: pd.DataFrame, match: MatchModel):

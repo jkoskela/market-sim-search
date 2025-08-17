@@ -2,7 +2,7 @@
 # GLOBALS                                                                       #
 #################################################################################
 
-PROJECT_NAME = market-span-cluster
+PROJECT_NAME = market-sim-search
 PYTHON_VERSION = 3.11
 PYTHON_INTERPRETER = python
 
@@ -25,11 +25,11 @@ clean:
 ## Lint using flake8 and black (use `make format` to do formatting)
 .PHONY: lint
 lint:
-	black --check --config pyproject.toml market_span_cluster
+	black --check --config pyproject.toml market_sim_search
 	black --check --config pyproject.toml notebooks
 
 ## Format source code with black
 .PHONY: format
 format:
-	black --config pyproject.toml market_span_cluster
+	black --config pyproject.toml market_sim_search
 	black --config pyproject.toml notebooks

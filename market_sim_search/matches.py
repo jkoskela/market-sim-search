@@ -6,9 +6,9 @@ import numpy as np
 from tslearn.metrics import dtw
 from loguru import logger
 
-from market_span_cluster.config import EST
-from market_span_cluster.models import MatchModel
-from market_span_cluster.types import ProgressReporter
+from market_sim_search.config import EST
+from market_sim_search.models import MatchModel
+from market_sim_search.types import ProgressReporter
 
 Strategy = Callable[[pd.DataFrame, pd.DataFrame], float]
 window_boundary_tolerance = timedelta(minutes=5)

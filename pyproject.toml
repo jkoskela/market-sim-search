@@ -3,7 +3,7 @@ requires = ["flit_core >=3.2,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "market_span_cluster"
+name = "market-sim-search"
 version = "0.1.0"
 description = "Search historical market data for similar time ranges using DTW graph similarity search and other features."
 authors = [

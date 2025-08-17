@@ -1,4 +1,4 @@
-# Market Span Cluster
+# Market Sim Search
 
 Search historical market data for similar time ranges using [Dynamic Time Warping](https://en.wikipedia.org/wiki/) distance.
 
@@ -31,7 +31,7 @@ template, then trimmed down.
 ├── data
 │   ├── processed         <- The final, canonical data sets for modeling.
 │   └── raw               <- The original, immutable data dump.
-├── market_span_cluster   <- Source code for use in this project
+├── market_sim_search   <- Source code for use in this project
 ├── notebooks
 │   └── search.py         <- search.py the main app.
 ├── pyproject.toml
@@ -43,15 +43,15 @@ template, then trimmed down.
 ## Installation
 
 ```bash
-python -m venv venv
+python -m venv .venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -e 
+pip install -e .
 ```
 
 ## Usage
 To run the webapp:
 ```bash
-streamlit run market_span_cluster/app.py
+streamlit run market_sim_search/app.py
 ```
 ## Development
 When adding a new dependency, update the requirements.in file and run:

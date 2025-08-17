@@ -10,11 +10,11 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 # st.set_page_config(layout="wide")
 
-from market_span_cluster.config import EST, PROJ_ROOT
-from market_span_cluster.data import load_csv, resample
-from market_span_cluster.matches import StrategyRunner
-from market_span_cluster.models import WindowMatch
-from market_span_cluster.plotting import get_window_matches, create_streamlit_chart
+from market_sim_search.config import EST, PROJ_ROOT
+from market_sim_search.data import load_csv, resample
+from market_sim_search.matches import StrategyRunner
+from market_sim_search.models import WindowMatch
+from market_sim_search.plotting import get_window_matches, create_streamlit_chart
 
 
 @st.cache_data
@@ -48,7 +48,7 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
-    st.title("Financial Pattern Finder")
+    st.title("Market Sim Search")
 
     now = datetime.now(pytz.UTC)
     if "counter" not in st.session_state:
@@ -75,7 +75,7 @@ def main():
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("Search Range")
-            ticker = st.text_input("Ticker Symbol", value="BTCUSDT", key='ticker')
+            # ticker = st.text_input("Ticker Symbol", value="BTCUSDT", key='ticker')
             search_start = st.date_input(
                 "Search Start Date",
                 max_value=now.date(),
