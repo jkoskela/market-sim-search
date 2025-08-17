@@ -18,18 +18,20 @@ from market_sim_search.plotting import get_window_matches, create_streamlit_char
 
 
 @st.cache_data
-def load_data():
-    input_file = Path(f'{PROJ_ROOT}/data/examples/qqq-20240701-20241004.ohlcv-1m.csv.zip')
-    df = load_csv(input_file, EST)
-    df = resample(df, '5min')
-    df.dropna(inplace=True)
-    return df
+def load_data(uploaded_file):
+    """Load and cache data from uploaded file"""
+    if uploaded_file is not None:
+        df = load_csv(uploaded_file, EST)
+        df = resample(df, '5min')
+        df.dropna(inplace=True)
+        return df
+    return None
 
 
 @st.cache_data(show_spinner=False)
 def run_search(data: pd.DataFrame, window_time_start: time, window_size_days: int, target_end: datetime,
                top: int = None) -> list[WindowMatch]:
-    progress_bar = st.progress(0, 'Searching for patterns...')
+    progress_bar = st.progress(0, 'Searching for similar time ranges...')
     runner = StrategyRunner(lambda x: progress_bar.progress(x))
     matches = runner.find_similar_dtw_high_low_close_4(data, window_time_start, window_size_days, target_end, top)
     return get_window_matches(data, matches)
@@ -53,108 +55,92 @@ def main():
     now = datetime.now(pytz.UTC)
     if "counter" not in st.session_state:
         st.session_state.counter = 0
+        st.session_state.df = None
+        st.session_state.search_results = None
 
         # Initialize default form values
-        st.session_state.search_start_date = (now - timedelta(days=180)).date()
+        st.session_state.search_start_date = now.date()
         st.session_state.search_end_date = now.date()
-        st.session_state.pattern_end_date = now.date()
-        st.session_state.pattern_end_time = now.time()
+        st.session_state.target_end_date = now.date()
+        st.session_state.target_end_time = now.time()
         st.session_state.lookback_days = 1
         st.session_state.top_n = 7
-        st.session_state.search_results = None
-        st.session_state.search_results = None
-
-        # Load historical data
-        st.session_state.df = load_data()
 
     st.header(f"This page has run {st.session_state.counter} times.")
     st.session_state.counter += 1
 
-    form_container = st.container(key='form_container')
-    with form_container.form("pattern_search_form"):
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Search Range")
-            # ticker = st.text_input("Ticker Symbol", value="BTCUSDT", key='ticker')
-            search_start = st.date_input(
-                "Search Start Date",
-                max_value=now.date(),
-                key='search_start_date'
-            )
-            search_end = st.date_input(
-                "Search End Date",
-                min_value=search_start,
-                max_value=now.date(),
-                key='search_end_date'
-            )
+    # File uploader
+    uploaded_file = st.file_uploader(
+        "Choose a CSV file",
+        type=['csv', 'zip'],
+        help="Upload a CSV file with OHLCV data or a zipped CSV file"
+    )
 
-        with col2:
-            st.subheader("Pattern Range")
-            # pattern_start = st.date_input(
-            #     "Pattern Start Date",
-            #     value=default_pattern_start.date(),
-            #     min_value=search_start,
-            #     max_value=now.date()
-            # )
-            # pattern_start_time = st.time_input(
-            #     "Pattern Start Time",
-            #     value=default_pattern_start.time()
-            # )
-            # pattern_end = st.date_input(
-            #     "Pattern End Date",
-            #     value=now.date(),
-            #     min_value=pattern_start,
-            #     max_value=now.date()
-            # )
-            pattern_end = st.date_input(
-                "Pattern End Date",
-                min_value=search_start,
-                max_value=now.date(),
-                key='pattern_end_date'
-            )
-            pattern_end_time = st.time_input(
-                "Pattern End Time",
-                key='pattern_end_time'
-            )
-            pattern_lookback_days = st.number_input(
-                "Lookback Days",
-                min_value=1,
-                max_value=3,
-                key='lookback_days'
-            )
+    # Load data if file is uploaded
+    if uploaded_file is not None:
+        st.session_state.df = load_data(uploaded_file)
 
-        # Bottom form elements
-        col3, col4, col5 = st.columns(3)
-        with col3:
-            strategy = st.selectbox(
-                "Strategy",
-                options=["DTW"],
-                key='strategy'
-            )
-        with col4:
-            top_n = st.number_input(
-                "Number of matches",
-                min_value=1,
-                max_value=10,
-                key='top_n'
-            )
-        with col5:
-            equity_type = st.selectbox(
-                "Equity Type",
-                options=["Stock", "Crypto", "Future"],
-                key='equity_type'
-            )
+        if st.session_state.df is not None:
+            # Get dataframe date range for defaults
+            df_start_date = st.session_state.df.index.min().date()
+            df_end_date = st.session_state.df.index.max().date()
 
-        submitted = st.form_submit_button("Find Patterns")
-        if submitted:
-            pattern_end_dt = EST.localize(datetime.combine(pattern_end, pattern_end_time))
-            st.session_state.search_results = run_search(st.session_state.df, time(9, 30),
-                                                         pattern_lookback_days,
-                                                         pattern_end_dt, top_n)
+            st.success(f"Data loaded successfully! Date range: {df_start_date} to {df_end_date}")
 
-    # Display pattern if we have results
+            # Update form values based on dataframe
+            st.session_state.search_start_date = df_start_date
+            st.session_state.search_end_date = df_end_date
+            st.session_state.target_end_date = df_end_date
+            st.session_state.target_end_time = time(10)
+            st.session_state.lookback_days = 1
+            st.session_state.top_n = 7
+
+            # Only render the form if data is loaded
+            form_container = st.container(key='form_container')
+            with form_container.form("target_search_form"):
+                st.subheader("Target Range")
+                target_end = st.date_input(
+                    "Target End Date",
+                    min_value=st.session_state.get('search_start_date', now.date()),
+                    max_value=st.session_state.get('search_end_date', now.date()),
+                    key='target_end_date'
+                )
+                target_end_time = st.time_input(
+                    "Target End Time",
+                    key='target_end_time'
+                )
+                target_lookback_days = st.number_input(
+                    "Lookback Days",
+                    min_value=1,
+                    max_value=3,
+                    key='lookback_days'
+                )
+                # Bottom form elements
+                col3, col4 = st.columns(2)
+                with col3:
+                    # Unused for now
+                    strategy = st.selectbox(
+                        "Strategy",
+                        options=["DTW"],
+                        key='strategy'
+                    )
+                with col4:
+                    top_n = st.number_input(
+                        "Number of matches",
+                        min_value=1,
+                        max_value=10,
+                        key='top_n'
+                    )
+                submitted = st.form_submit_button("Find Matches")
+                if submitted:
+                    target_end_dt = EST.localize(datetime.combine(target_end, target_end_time))
+                    st.session_state.search_results = run_search(st.session_state.df, time(9, 30),
+                                                                target_lookback_days,
+                                                                target_end_dt, top_n)
+
+    # Display target if we have results
     if st.session_state.search_results is not None:
-        st.subheader("Pattern Matches")
+        st.subheader("Matches")
         with st.container(key='matches-container'):
             col6, col7 = st.columns(2)
             with col6:

@@ -7,7 +7,11 @@ from market_sim_search.config import EST
 
 
 def load_csv(input_file: Path, tz=EST, dedupe: bool = True) -> pd.DataFrame:
-    """Load a CSV file from disk"""
+    """Load OHLCV data in zipped csv format.
+
+    This was created to load data from Databento.
+    It expects a datetimetz column named ts_event which is converted to New York time.
+    """
     df = pd.read_csv(input_file, compression='zip', parse_dates=['ts_event'], index_col='ts_event',
                      date_format='ISO8601')
     if tz:
